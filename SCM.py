@@ -187,10 +187,6 @@ if inventory_data is not None and sales_data is not None:
                         # Show the plot
                         st.pyplot(fig)
                         
-                        # Also show the data in a table
-                        st.subheader("Last 12 Sales Data")
-                        display_cols = ['Date', 'Sales Quantity']
-                        st.table(last_12_sales[display_cols].reset_index(drop=True))
                     else:
                         st.write("❌ No sales data found for this product.")
                 else:
