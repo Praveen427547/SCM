@@ -36,6 +36,13 @@ else:
 
 # Only show the app if data is loaded
 if inventory_data is not None and sales_data is not None:
+    # Ensure date columns are datetime objects
+    # This is the main fix - convert string dates to datetime objects
+    date_columns = ['Date', 'Promised Date', 'Delivery Date']
+    for col in date_columns:
+        if col in sales_data.columns:
+            sales_data[col] = pd.to_datetime(sales_data[col])
+
     # 📌 Demand Forecasting Function (Simple Moving Average)
     def forecast_demand(product_id, months=3):
         product_sales = sales_data[sales_data['Product ID'] == product_id]
