@@ -7,25 +7,25 @@ from datetime import datetime, timedelta
 st.title("📦 Supply Chain Management System")
 
 # Data source selection
-data_source = st.sidebar.radio("Select Data Source:", ["Upload your ERP Data", "Owner Data"])
+data_source = st.sidebar.radio("Select Data Source:", ["Use Default Data", "Upload Excel File"])
 
 # Initialize inventory_data and sales_data as None
 inventory_data = None
 sales_data = None
 
 # Load data based on selection
-if data_source == "Owner Data":
+if data_source == "Use Default Data":
     # Load from default file path
     try:
         file_path = 'SCM_Data.xlsx'
         inventory_data = pd.read_excel(file_path, sheet_name='Inventory')
         sales_data = pd.read_excel(file_path, sheet_name='Sales')
-        st.sidebar.success("✅ Owner data loaded successfully!")
+        st.sidebar.success("✅ Default data loaded successfully!")
     except Exception as e:
         st.sidebar.error(f"❌ Error loading default data: {e}")
 else:
     # File upload
-    uploaded_file = st.sidebar.file_uploader("Upload your ERP Data", type="xlsx")
+    uploaded_file = st.sidebar.file_uploader("Upload Excel File", type="xlsx")
     if uploaded_file is not None:
         try:
             inventory_data = pd.read_excel(uploaded_file, sheet_name='Inventory')
@@ -117,12 +117,51 @@ if inventory_data is not None and sales_data is not None:
                     total_deliveries = product_sales.shape[0]
                     on_time_delivery_rate = (on_time_deliveries / total_deliveries) * 100 if total_deliveries > 0 else 0
                     st.write(f"🚚 On-Time Delivery Rate: {on_time_delivery_rate:.2f}%")
+                
+                    # Total Sales
+                    total_sales = product_sales['Sales Quantity'].sum() if not product_sales.empty else 0
+                    st.write(f"📊 Total Sales: {total_sales} units")
+                    
+                    # Last Year Sales Plot
+                    st.subheader("📈 Sales Over Last Year")
+                    
+                    # Filter sales data for the last year
+                    one_year_ago = datetime.now() - timedelta(days=365)
+                    yearly_sales = product_sales[product_sales['Date'] >= one_year_ago].copy()
+                    
+                    if not yearly_sales.empty:
+                        # Group by date and sum sales quantities
+                        yearly_sales = yearly_sales.sort_values(by='Date')
+                        sales_by_date = yearly_sales.groupby('Date')['Sales Quantity'].sum().reset_index()
+                        
+                        # Create the plot with vertical date labels
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        bars = ax.bar(sales_by_date['Date'], sales_by_date['Sales Quantity'], 
+                                     color='skyblue', width=15)
+                        
+                        # Set labels and title
+                        ax.set_xlabel('Date')
+                        ax.set_ylabel('Sales Quantity')
+                        ax.set_title(f'Sales for {product_name} (Last Year)')
+                        
+                        # Format x-axis with vertical dates to prevent overlapping
+                        plt.xticks(rotation=90)
+                        
+                        # Adjust layout to make room for the vertical labels
+                        plt.tight_layout()
+                        
+                        # Display the plot
+                        st.pyplot(fig)
+                        
+                        # Add data table below the chart
+                        st.subheader("Sales Data")
+                        st.dataframe(sales_by_date.set_index('Date'))
+                    else:
+                        st.write("❌ No sales data available for the last year.")
                 else:
                     st.write("🚚 On-Time Delivery Rate: No deliveries found for this product.")
-                
-                # Total Sales
-                total_sales = product_sales['Sales Quantity'].sum() if not product_sales.empty else 0
-                st.write(f"📊 Total Sales: {total_sales} units")
+                    st.write("📊 Total Sales: 0 units")
+                    st.write("❌ No sales data available for plotting.")
             else:
                 st.error("❌ Product not found in inventory!")
 
