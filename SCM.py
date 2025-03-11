@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 st.title("📦 Supply Chain Management System")
 
 # Data source selection
-data_source = st.sidebar.radio("Select Data Source:", ["Upload Excel File", "Owner Data"])
+data_source = st.sidebar.radio("Select Data Source:", ["Upload your ERP Data", "Owner Data"])
 
 # Initialize inventory_data and sales_data as None
 inventory_data = None
@@ -25,7 +25,7 @@ if data_source == "Owner Data":
         st.sidebar.error(f"❌ Error loading default data: {e}")
 else:
     # File upload
-    uploaded_file = st.sidebar.file_uploader("Upload Excel File", type="xlsx")
+    uploaded_file = st.sidebar.file_uploader("Upload your ERP Data", type="xlsx")
     if uploaded_file is not None:
         try:
             inventory_data = pd.read_excel(uploaded_file, sheet_name='Inventory')
