@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
 from datetime import datetime, timedelta
+import matplotlib.dates as mdates
 
 st.title("📦 Supply Chain Management System")
 
@@ -37,7 +38,6 @@ else:
 # Only show the app if data is loaded
 if inventory_data is not None and sales_data is not None:
     # Ensure date columns are datetime objects
-    # This is the main fix - convert string dates to datetime objects
     date_columns = ['Date', 'Promised Date', 'Delivery Date']
     for col in date_columns:
         if col in sales_data.columns:
@@ -129,41 +129,75 @@ if inventory_data is not None and sales_data is not None:
                     total_sales = product_sales['Sales Quantity'].sum() if not product_sales.empty else 0
                     st.write(f"📊 Total Sales: {total_sales} units")
                     
-                    # Last Year Sales Plot - Changed to time series
-                    st.subheader("📈 Sales Over Last Year")
+                    # Last 12 Months Sales Plot - Improved time series
+                    st.subheader("📈 Sales Over Last 12 Months")
                     
-                    # Filter sales data for the last year
-                    one_year_ago = datetime.now() - timedelta(days=365)
-                    yearly_sales = product_sales[product_sales['Date'] >= one_year_ago].copy()
+                    # Create a date range for the last 12 months
+                    today = datetime.now()
+                    last_12_months = pd.date_range(
+                        start=today - timedelta(days=365),
+                        end=today,
+                        freq='MS'  # Month Start frequency
+                    )
                     
-                    if not yearly_sales.empty:
-                        # Group by date and sum sales quantities
-                        yearly_sales = yearly_sales.sort_values(by='Date')
-                        sales_by_date = yearly_sales.groupby('Date')['Sales Quantity'].sum().reset_index()
+                    # Create a dataframe with all months (including those with zero sales)
+                    monthly_dates = pd.DataFrame({'Date': last_12_months})
+                    
+                    # Filter sales data for the last 12 months and the specific product
+                    twelve_month_sales = product_sales[
+                        product_sales['Date'] >= (today - timedelta(days=365))
+                    ].copy()
+                    
+                    # Convert the sales dates to month start for grouping
+                    twelve_month_sales['Month'] = twelve_month_sales['Date'].dt.to_period('M').dt.to_timestamp()
+                    
+                    # Group by month and sum sales quantities
+                    if not twelve_month_sales.empty:
+                        sales_by_month = twelve_month_sales.groupby('Month')['Sales Quantity'].sum().reset_index()
                         
-                        # Create a time series line plot instead of histogram
-                        fig, ax = plt.subplots(figsize=(10, 6))
-                        ax.plot(sales_by_date['Date'], sales_by_date['Sales Quantity'], 
-                               marker='o', linestyle='-', color='#1f77b4', linewidth=2)
+                        # Merge with the complete date range to include zeros
+                        complete_sales = monthly_dates.merge(
+                            sales_by_month,
+                            how='left',
+                            left_on='Date',
+                            right_on='Month'
+                        )
+                        
+                        # Fill NaN with zeros for months with no sales
+                        complete_sales['Sales Quantity'] = complete_sales['Sales Quantity'].fillna(0)
+                        
+                        # Sort by date
+                        complete_sales = complete_sales.sort_values('Date')
+                        
+                        # Create the improved time series plot
+                        fig, ax = plt.subplots(figsize=(12, 6))
+                        
+                        # Plot line with markers
+                        ax.plot(complete_sales['Date'], complete_sales['Sales Quantity'], 
+                               marker='o', linestyle='-', color='#1f77b4', linewidth=2, markersize=8)
+                        
+                        # Format x-axis to show month names
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+                        ax.xaxis.set_major_locator(mdates.MonthLocator())
                         
                         # Set labels and title
-                        ax.set_xlabel('Date')
+                        ax.set_xlabel('Month')
                         ax.set_ylabel('Sales Quantity')
-                        ax.set_title(f'Sales Time Series for {product_name} (Last Year)')
+                        ax.set_title(f'Monthly Sales for {product_name} (Last 12 Months)')
                         
-                        # Format x-axis with angled dates to prevent overlapping
-                        plt.xticks(rotation=45)
+                        # Rotate x-axis labels 90 degrees
+                        plt.xticks(rotation=90)
                         
                         # Add grid for better readability
                         ax.grid(True, linestyle='--', alpha=0.7)
                         
-                        # Adjust layout to make room for the rotated labels
+                        # Tight layout
                         plt.tight_layout()
                         
                         # Display the plot
                         st.pyplot(fig)
                     else:
-                        st.write("❌ No sales data available for the last year.")
+                        st.write("❌ No sales data available for the last 12 months.")
                 else:
                     st.write("🚚 On-Time Delivery Rate: No deliveries found for this product.")
                     st.write("📊 Total Sales: 0 units")
