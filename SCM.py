@@ -99,7 +99,7 @@ if inventory_data is not None and sales_data is not None:
             else:
                 st.error("❌ Product not found in inventory!")
 
-    # 📌 Product Stats Function with Debugging
+    # 📌 Product Stats Function with Improved 12-Month Plot
     def product_stats():
         product_id = st.text_input("Enter Product ID (e.g., P0023):").strip().upper()
         
@@ -120,12 +120,7 @@ if inventory_data is not None and sales_data is not None:
                 # On-Time Delivery Rate for the Product
                 product_sales = sales_data[sales_data['Product ID'] == product_id].copy()
                 
-                # DEBUG: Check if we have any sales data for this product
-                st.write(f"DEBUG: Total sales records for {product_id}: {len(product_sales)}")
                 if not product_sales.empty:
-                    st.write("DEBUG: Sample of sales data for this product:")
-                    st.write(product_sales.head())
-                    
                     on_time_deliveries = product_sales[product_sales['Delivery Date'] <= product_sales['Promised Date']].shape[0]
                     total_deliveries = product_sales.shape[0]
                     on_time_delivery_rate = (on_time_deliveries / total_deliveries) * 100 if total_deliveries > 0 else 0
@@ -138,67 +133,47 @@ if inventory_data is not None and sales_data is not None:
                     # Last 12 Months Sales Plot
                     st.subheader("📈 Sales Over Last 12 Months")
                     
-                    # Create a date range for the last 12 months
+                    # Get the current date
                     today = datetime.now()
-                    last_12_months_start = today - timedelta(days=365)
                     
-                    # DEBUG: Show date range
-                    st.write(f"DEBUG: Date range from {last_12_months_start.date()} to {today.date()}")
+                    # Calculate the start date for the 12-month period
+                    start_date = today - timedelta(days=365)
                     
-                    # Generate all months in the last 12 months period
-                    month_range = pd.date_range(
-                        start=last_12_months_start,
-                        end=today,
-                        freq='MS'  # Month Start frequency
-                    )
+                    # Ensure dates are in datetime format
+                    product_sales['Date'] = pd.to_datetime(product_sales['Date'])
                     
-                    # Create a DataFrame with all months (for joining)
-                    all_months_df = pd.DataFrame({'Month': month_range})
-                    st.write("DEBUG: All months in range:")
-                    st.write(all_months_df)
+                    # Filter sales data for the last 12 months
+                    last_12_months_sales = product_sales[product_sales['Date'] >= start_date].copy()
                     
-                    # Filter sales data for this specific product and the last 12 months
-                    st.write("DEBUG: Date column type:", type(product_sales['Date'].iloc[0]))
-                    st.write("DEBUG: First few dates in sales data:")
-                    st.write(product_sales['Date'].head())
-                    
-                    # Ensure Date column is datetime
-                    if not pd.api.types.is_datetime64_any_dtype(product_sales['Date']):
-                        st.write("DEBUG: Converting Date column to datetime")
-                        product_sales['Date'] = pd.to_datetime(product_sales['Date'])
-                    
-                    # Apply date filter - with explicit type conversion for comparison
-                    filtered_sales = product_sales[
-                        (product_sales['Date'] >= pd.to_datetime(last_12_months_start)) & 
-                        (product_sales['Date'] <= pd.to_datetime(today))
-                    ].copy()
-                    
-                    # DEBUG: Show filtered data
-                    st.write(f"DEBUG: Records after date filtering: {len(filtered_sales)}")
-                    if not filtered_sales.empty:
-                        st.write("DEBUG: Sample of filtered data:")
-                        st.write(filtered_sales.head())
+                    if not last_12_months_sales.empty:
+                        # Create a date range for all months in the last 12 months
+                        date_range = pd.date_range(
+                            start=start_date.replace(day=1),  # Start from first day of month
+                            end=today,
+                            freq='MS'  # Month Start frequency
+                        )
                         
-                        # Convert to month start date for grouping
-                        filtered_sales['Month'] = filtered_sales['Date'].dt.to_period('M').dt.to_timestamp()
+                        # Create a DataFrame with all months in the range
+                        all_months_df = pd.DataFrame({'Month': date_range})
                         
-                        # Group by month and sum sales quantities
-                        monthly_sales = filtered_sales.groupby('Month')['Sales Quantity'].sum().reset_index()
-                        st.write("DEBUG: Monthly sales after grouping:")
-                        st.write(monthly_sales)
+                        # Extract month and year from date for grouping
+                        last_12_months_sales['Year_Month'] = last_12_months_sales['Date'].dt.to_period('M')
+                        
+                        # Group by year-month and sum the sales quantity
+                        monthly_sales = last_12_months_sales.groupby('Year_Month')['Sales Quantity'].sum().reset_index()
+                        
+                        # Convert Period to timestamp for merging and plotting
+                        monthly_sales['Month'] = monthly_sales['Year_Month'].dt.to_timestamp()
                         
                         # Merge with all months to include zeros for months with no sales
                         complete_monthly_sales = all_months_df.merge(
-                            monthly_sales, 
+                            monthly_sales[['Month', 'Sales Quantity']], 
                             on='Month', 
                             how='left'
                         )
                         
                         # Fill NaN values with zeros
                         complete_monthly_sales['Sales Quantity'] = complete_monthly_sales['Sales Quantity'].fillna(0)
-                        
-                        st.write("DEBUG: Complete monthly sales data (with zeros):")
-                        st.write(complete_monthly_sales)
                         
                         # Create the plot
                         fig, ax = plt.subplots(figsize=(12, 6))
@@ -223,8 +198,8 @@ if inventory_data is not None and sales_data is not None:
                         ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
                         ax.xaxis.set_major_locator(mdates.MonthLocator())
                         
-                        # Rotate labels 90 degrees
-                        plt.xticks(rotation=90)
+                        # Rotate labels 45 degrees for better readability
+                        plt.xticks(rotation=45)
                         
                         # Add grid
                         ax.grid(True, linestyle='--', alpha=0.7)
@@ -243,7 +218,10 @@ if inventory_data is not None and sales_data is not None:
                         max_sales = complete_monthly_sales['Sales Quantity'].max()
                         ax.set_ylim(0, max_sales * 1.2 if max_sales > 0 else 10)
                         
+                        # Add tight layout
                         plt.tight_layout()
+                        
+                        # Display the plot
                         st.pyplot(fig)
                     else:
                         st.write("❌ No sales data found for this product in the last 12 months.")
