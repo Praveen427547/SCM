@@ -129,7 +129,7 @@ if inventory_data is not None and sales_data is not None:
                     total_sales = product_sales['Sales Quantity'].sum() if not product_sales.empty else 0
                     st.write(f"📊 Total Sales: {total_sales} units")
                     
-                    # Last Year Sales Plot
+                    # Last Year Sales Plot - Changed to time series
                     st.subheader("📈 Sales Over Last Year")
                     
                     # Filter sales data for the last year
@@ -141,28 +141,27 @@ if inventory_data is not None and sales_data is not None:
                         yearly_sales = yearly_sales.sort_values(by='Date')
                         sales_by_date = yearly_sales.groupby('Date')['Sales Quantity'].sum().reset_index()
                         
-                        # Create the plot with vertical date labels
+                        # Create a time series line plot instead of histogram
                         fig, ax = plt.subplots(figsize=(10, 6))
-                        bars = ax.bar(sales_by_date['Date'], sales_by_date['Sales Quantity'], 
-                                     color='skyblue', width=15)
+                        ax.plot(sales_by_date['Date'], sales_by_date['Sales Quantity'], 
+                               marker='o', linestyle='-', color='#1f77b4', linewidth=2)
                         
                         # Set labels and title
                         ax.set_xlabel('Date')
                         ax.set_ylabel('Sales Quantity')
-                        ax.set_title(f'Sales for {product_name} (Last Year)')
+                        ax.set_title(f'Sales Time Series for {product_name} (Last Year)')
                         
-                        # Format x-axis with vertical dates to prevent overlapping
-                        plt.xticks(rotation=90)
+                        # Format x-axis with angled dates to prevent overlapping
+                        plt.xticks(rotation=45)
                         
-                        # Adjust layout to make room for the vertical labels
+                        # Add grid for better readability
+                        ax.grid(True, linestyle='--', alpha=0.7)
+                        
+                        # Adjust layout to make room for the rotated labels
                         plt.tight_layout()
                         
                         # Display the plot
                         st.pyplot(fig)
-                        
-                        # Add data table below the chart
-                        st.subheader("Sales Data")
-                        st.dataframe(sales_by_date.set_index('Date'))
                     else:
                         st.write("❌ No sales data available for the last year.")
                 else:
