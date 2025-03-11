@@ -20,7 +20,7 @@ if data_source == "Owner Data":
         file_path = 'SCM_Data.xlsx'
         inventory_data = pd.read_excel(file_path, sheet_name='Inventory')
         sales_data = pd.read_excel(file_path, sheet_name='Sales')
-        st.sidebar.success("✅ Default data loaded successfully!")
+        st.sidebar.success("✅ Owner data loaded successfully!")
     except Exception as e:
         st.sidebar.error(f"❌ Error loading default data: {e}")
 else:
