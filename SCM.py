@@ -8,14 +8,14 @@ import matplotlib.dates as mdates
 st.title("📦 Supply Chain Management System")
 
 # Data source selection
-data_source = st.sidebar.radio("Select Data Source:", ["Use Default Data", "Upload Excel File"])
+data_source = st.sidebar.radio("Select Data Source:", ["Upload your ERP Data","Use Owner Data"])
 
 # Initialize inventory_data and sales_data as None
 inventory_data = None
 sales_data = None
 
 # Load data based on selection
-if data_source == "Use Default Data":
+if data_source == "Use Owner Data":
     # Load from default file path
     try:
         file_path = 'SCM_Data.xlsx'
@@ -26,7 +26,7 @@ if data_source == "Use Default Data":
         st.sidebar.error(f"❌ Error loading default data: {e}")
 else:
     # File upload
-    uploaded_file = st.sidebar.file_uploader("Upload Excel File", type="xlsx")
+    uploaded_file = st.sidebar.file_uploader("Upload ypur ERP Data", type="xlsx")
     if uploaded_file is not None:
         try:
             inventory_data = pd.read_excel(uploaded_file, sheet_name='Inventory')
