@@ -101,109 +101,129 @@ if inventory_data is not None and sales_data is not None:
 
     # 📌 Product Stats Function
     def product_stats():
-        product_id = st.text_input("Enter Product ID (e.g., P0023):").strip().upper()
-        
-        if st.button("View Product Stats"):
-            if product_id in inventory_data['Product ID'].values:
-                product_info = inventory_data[inventory_data['Product ID'] == product_id].iloc[0]
+    product_id = st.text_input("Enter Product ID (e.g., P0023):").strip().upper()
+    
+    if st.button("View Product Stats"):
+        if product_id in inventory_data['Product ID'].values:
+            product_info = inventory_data[inventory_data['Product ID'] == product_id].iloc[0]
+            
+            product_name = product_info['Product Name']
+            suppliers = product_info['Supplier Name']
+            current_stock = product_info['Stock Quantity']
+            reorder_level = product_info['Reorder Level']
+            
+            st.write(f"\n🏷️ Product Name: {product_name}")
+            st.write(f"📦 Current Stock: {current_stock} units")
+            st.write(f"📦 Reorder Level: {reorder_level} units")
+            st.write(f"🏷️ Suppliers: {suppliers}")
+            
+            # On-Time Delivery Rate for the Product
+            product_sales = sales_data[sales_data['Product ID'] == product_id]
+            if not product_sales.empty:
+                on_time_deliveries = product_sales[product_sales['Delivery Date'] <= product_sales['Promised Date']].shape[0]
+                total_deliveries = product_sales.shape[0]
+                on_time_delivery_rate = (on_time_deliveries / total_deliveries) * 100 if total_deliveries > 0 else 0
+                st.write(f"🚚 On-Time Delivery Rate: {on_time_delivery_rate:.2f}%")
+            
+                # Total Sales
+                total_sales = product_sales['Sales Quantity'].sum() if not product_sales.empty else 0
+                st.write(f"📊 Total Sales: {total_sales} units")
                 
-                product_name = product_info['Product Name']
-                suppliers = product_info['Supplier Name']
-                current_stock = product_info['Stock Quantity']
-                reorder_level = product_info['Reorder Level']
+                # Last 12 Months Sales Plot - Improved time series
+                st.subheader("📈 Sales Over Last 12 Months")
                 
-                st.write(f"\n🏷️ Product Name: {product_name}")
-                st.write(f"📦 Current Stock: {current_stock} units")
-                st.write(f"📦 Reorder Level: {reorder_level} units")
-                st.write(f"🏷️ Suppliers: {suppliers}")
+                # Create a date range for the last 12 months
+                today = datetime.now()
+                last_12_months_start = today - timedelta(days=365)
                 
-                # On-Time Delivery Rate for the Product
-                product_sales = sales_data[sales_data['Product ID'] == product_id]
-                if not product_sales.empty:
-                    on_time_deliveries = product_sales[product_sales['Delivery Date'] <= product_sales['Promised Date']].shape[0]
-                    total_deliveries = product_sales.shape[0]
-                    on_time_delivery_rate = (on_time_deliveries / total_deliveries) * 100 if total_deliveries > 0 else 0
-                    st.write(f"🚚 On-Time Delivery Rate: {on_time_delivery_rate:.2f}%")
+                # Generate all months in the last 12 months period
+                month_range = pd.date_range(
+                    start=last_12_months_start,
+                    end=today,
+                    freq='MS'  # Month Start frequency
+                )
                 
-                    # Total Sales
-                    total_sales = product_sales['Sales Quantity'].sum() if not product_sales.empty else 0
-                    st.write(f"📊 Total Sales: {total_sales} units")
-                    
-                    # Last 12 Months Sales Plot - Improved time series
-                    st.subheader("📈 Sales Over Last 12 Months")
-                    
-                    # Create a date range for the last 12 months
-                    today = datetime.now()
-                    last_12_months = pd.date_range(
-                        start=today - timedelta(days=365),
-                        end=today,
-                        freq='MS'  # Month Start frequency
-                    )
-                    
-                    # Create a dataframe with all months (including those with zero sales)
-                    monthly_dates = pd.DataFrame({'Date': last_12_months})
-                    
-                    # Filter sales data for the last 12 months and the specific product
-                    twelve_month_sales = product_sales[
-                        product_sales['Date'] >= (today - timedelta(days=365))
-                    ].copy()
-                    
-                    # Convert the sales dates to month start for grouping
-                    twelve_month_sales['Month'] = twelve_month_sales['Date'].dt.to_period('M').dt.to_timestamp()
+                # Create a DataFrame with all months (for joining)
+                all_months_df = pd.DataFrame({'Month': month_range})
+                
+                # Filter sales data for this specific product and the last 12 months
+                filtered_sales = product_sales[
+                    (product_sales['Date'] >= last_12_months_start) & 
+                    (product_sales['Date'] <= today)
+                ].copy()
+                
+                if not filtered_sales.empty:
+                    # Convert to month start date for grouping
+                    filtered_sales['Month'] = filtered_sales['Date'].dt.to_period('M').dt.to_timestamp()
                     
                     # Group by month and sum sales quantities
-                    if not twelve_month_sales.empty:
-                        sales_by_month = twelve_month_sales.groupby('Month')['Sales Quantity'].sum().reset_index()
-                        
-                        # Merge with the complete date range to include zeros
-                        complete_sales = monthly_dates.merge(
-                            sales_by_month,
-                            how='left',
-                            left_on='Date',
-                            right_on='Month'
+                    monthly_sales = filtered_sales.groupby('Month')['Sales Quantity'].sum().reset_index()
+                    
+                    # Merge with all months to include zeros for months with no sales
+                    complete_monthly_sales = all_months_df.merge(
+                        monthly_sales, 
+                        on='Month', 
+                        how='left'
+                    )
+                    
+                    # Fill NaN values with zeros
+                    complete_monthly_sales['Sales Quantity'] = complete_monthly_sales['Sales Quantity'].fillna(0)
+                    
+                    # Create the plot
+                    fig, ax = plt.subplots(figsize=(12, 6))
+                    
+                    # Plot the data with markers
+                    ax.plot(
+                        complete_monthly_sales['Month'], 
+                        complete_monthly_sales['Sales Quantity'],
+                        marker='o', 
+                        linestyle='-', 
+                        color='#1f77b4', 
+                        linewidth=2,
+                        markersize=8
+                    )
+                    
+                    # Set labels and title with the product name
+                    ax.set_xlabel('Month')
+                    ax.set_ylabel('Sales Quantity')
+                    ax.set_title(f'Monthly Sales for {product_name} ({product_id}) - Last 12 Months')
+                    
+                    # Format x-axis to show month names
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+                    ax.xaxis.set_major_locator(mdates.MonthLocator())
+                    
+                    # Rotate labels 90 degrees
+                    plt.xticks(rotation=90)
+                    
+                    # Add grid
+                    ax.grid(True, linestyle='--', alpha=0.7)
+                    
+                    # Add data points label
+                    for i, val in enumerate(complete_monthly_sales['Sales Quantity']):
+                        ax.annotate(
+                            f'{int(val)}', 
+                            (complete_monthly_sales['Month'].iloc[i], val),
+                            textcoords="offset points", 
+                            xytext=(0,10), 
+                            ha='center'
                         )
-                        
-                        # Fill NaN with zeros for months with no sales
-                        complete_sales['Sales Quantity'] = complete_sales['Sales Quantity'].fillna(0)
-                        
-                        # Sort by date
-                        complete_sales = complete_sales.sort_values('Date')
-                        
-                        # Create the improved time series plot
-                        fig, ax = plt.subplots(figsize=(12, 6))
-                        
-                        # Plot line with markers
-                        ax.plot(complete_sales['Date'], complete_sales['Sales Quantity'], 
-                               marker='o', linestyle='-', color='#1f77b4', linewidth=2, markersize=8)
-                        
-                        # Format x-axis to show month names
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-                        ax.xaxis.set_major_locator(mdates.MonthLocator())
-                        
-                        # Set labels and title
-                        ax.set_xlabel('Month')
-                        ax.set_ylabel('Sales Quantity')
-                        ax.set_title(f'Monthly Sales for {product_name} (Last 12 Months)')
-                        
-                        # Rotate x-axis labels 90 degrees
-                        plt.xticks(rotation=90)
-                        
-                        # Add grid for better readability
-                        ax.grid(True, linestyle='--', alpha=0.7)
-                        
-                        # Tight layout
-                        plt.tight_layout()
-                        
-                        # Display the plot
-                        st.pyplot(fig)
-                    else:
-                        st.write("❌ No sales data available for the last 12 months.")
+                    
+                    # Adjust y-axis to start from 0 and have some headroom
+                    max_sales = complete_monthly_sales['Sales Quantity'].max()
+                    ax.set_ylim(0, max_sales * 1.2 if max_sales > 0 else 10)
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig)
                 else:
-                    st.write("🚚 On-Time Delivery Rate: No deliveries found for this product.")
-                    st.write("📊 Total Sales: 0 units")
-                    st.write("❌ No sales data available for plotting.")
+                    st.write("❌ No sales data found for this product in the last 12 months.")
             else:
-                st.error("❌ Product not found in inventory!")
+                st.write("🚚 On-Time Delivery Rate: No deliveries found for this product.")
+                st.write("📊 Total Sales: 0 units")
+                st.write("❌ No sales data available for plotting.")
+        else:
+            st.error("❌ Product not found in inventory!")
+
+                     
 
     # 📌 KPI Calculation Functions (Updated)
     def calculate_kpis():
