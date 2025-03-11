@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 st.title("📦 Supply Chain Management System")
 
 # Data source selection
-data_source = st.sidebar.radio("Select Data Source:", ["Use Default Data", "Upload Excel File"])
+data_source = st.sidebar.radio("Select Data Source:", ["Upload Excel File", "Owner Data"])
 
 # Initialize inventory_data and sales_data as None
 inventory_data = None
