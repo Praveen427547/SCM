@@ -14,7 +14,7 @@ inventory_data = None
 sales_data = None
 
 # Load data based on selection
-if data_source == "Use Default Data":
+if data_source == "Owner Data":
     # Load from default file path
     try:
         file_path = 'SCM_Data.xlsx'
